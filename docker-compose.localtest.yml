@@ -1,0 +1,29 @@
+services:
+  smtp2graph-localtest:
+    image: smtp2graph/smtp2graph:latest
+    container_name: smtp2graph-localtest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:1587:587"
+    volumes:
+      - ./plugin-ui/test-data:/data
+      - ${SMTP2GRAPH_CERTS_HOST_PATH:-./plugin-ui/test-certs}:${SMTP2GRAPH_CERTS_CONTAINER_PATH:-/certs}:ro
+
+  smtp2graph-admin-localtest:
+    build: ./plugin-ui/ui
+    container_name: smtp2graph-admin-localtest
+    restart: unless-stopped
+    depends_on:
+      - smtp2graph-localtest
+    environment:
+      UI_PORT: "16666"
+      UI_USERNAME: "admin"
+      UI_PASSWORD_HASH_FILE: "/config/admin-password.hash"
+      CONFIG_PATH: "/config/config.yml"
+      SMTP2GRAPH_CONTAINER: "smtp2graph-localtest"
+    ports:
+      - "127.0.0.1:16667:16666"
+    volumes:
+      - ./plugin-ui/test-data:/config
+      - ${SMTP2GRAPH_CERTS_HOST_PATH:-./plugin-ui/test-certs}:${SMTP2GRAPH_CERTS_CONTAINER_PATH:-/certs}:ro
+      - /var/run/docker.sock:/var/run/docker.sock

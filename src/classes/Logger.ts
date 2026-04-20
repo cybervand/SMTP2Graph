@@ -8,10 +8,27 @@ export interface ILogMeta extends Record<string, any>
 
 const logsDir = 'logs';
 
+function serializeConsoleMeta(info: Record<string, any>): string
+{
+    const meta: Record<string, any> = {};
+
+    for(const [key, value] of Object.entries(info))
+    {
+        if(['level', 'message', 'timestamp'].includes(key))
+            continue;
+        if(value === undefined)
+            continue;
+
+        meta[key] = value;
+    }
+
+    return Object.keys(meta).length?` ${JSON.stringify(meta)}`:'';
+}
+
 const consoleFormat = winston.format.combine(
     winston.format.colorize(),
     winston.format.timestamp({format: 'YYYY-MM-DD HH:mm:ss'}),
-    winston.format.printf((info: any)=>`[${info.timestamp}] [${info.level}]: ${info.message}`),
+    winston.format.printf((info: any)=>`[${info.timestamp}] [${info.level}]: ${info.message}${serializeConsoleMeta(info)}`),
 );
 
 const logger = winston.createLogger({

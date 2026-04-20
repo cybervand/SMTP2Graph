@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>smtp2graph admin setup</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #11141a;
+      --panel: #181d26;
+      --muted: #9aa4b2;
+      --text: #eef2f7;
+      --accent: #7cc4ff;
+      --border: #283042;
+      --glow: rgba(124, 196, 255, 0.18);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      font-family: Inter, system-ui, Arial, sans-serif;
+      background:
+        radial-gradient(circle at top, rgba(124, 196, 255, 0.16), transparent 34%),
+        linear-gradient(180deg, #0f1218, #131923);
+      color: var(--text);
+    }
+    .panel {
+      width: min(100%, 460px);
+      background: rgba(24,29,38,0.96);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      padding: 26px;
+      box-shadow: 0 18px 60px rgba(0, 0, 0, 0.32);
+    }
+    h1 {
+      margin: 0 0 10px;
+      font-size: 1.9rem;
+    }
+    p, .muted {
+      color: var(--muted);
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 6px 10px;
+      background: #0f141c;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 0.88rem;
+      margin-bottom: 18px;
+    }
+    .row {
+      margin-bottom: 14px;
+    }
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    input {
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #0f141c;
+      color: var(--text);
+      padding: 12px 13px;
+      font-size: 0.96rem;
+    }
+    button {
+      width: 100%;
+      border: 0;
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-size: 0.96rem;
+      font-weight: 700;
+      cursor: pointer;
+      background: var(--accent);
+      color: #07111d;
+      box-shadow: 0 0 0 0 var(--glow);
+      transition: box-shadow 120ms ease, transform 120ms ease;
+    }
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 0 0 6px var(--glow);
+    }
+    .flash {
+      padding: 12px 14px;
+      border-radius: 12px;
+      margin-bottom: 14px;
+      border: 1px solid rgba(255, 122, 122, 0.4);
+      background: rgba(255, 122, 122, 0.14);
+      color: var(--text);
+    }
+    code {
+      background: #0f141c;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 2px 6px;
+    }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <div class="badge">First-time setup</div>
+    <h1>smtp2graph admin</h1>
+    <p>Create the admin password for <strong>{{ username }}</strong>. There is no default password.</p>
+    <p class="muted">The password hash will be stored at <code>{{ password_hash_path }}</code>.</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="flash">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <form method="post">
+      <div class="row">
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" autocomplete="new-password" required>
+      </div>
+      <div class="row">
+        <label for="confirm_password">Confirm password</label>
+        <input id="confirm_password" name="confirm_password" type="password" autocomplete="new-password" required>
+      </div>
+      <button type="submit">Create admin password</button>
+    </form>
+  </div>
+</body>
+</html>

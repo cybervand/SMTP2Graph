@@ -1,0 +1,912 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>smtp2graph admin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #10141b;
+      --panel: #1a202b;
+      --muted: #9aa4b2;
+      --text: #eef2f7;
+      --accent: #8fd0ff;
+      --accent-soft: rgba(143, 208, 255, 0.14);
+      --border: #2a3345;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background:
+        radial-gradient(circle at top, rgba(143, 208, 255, 0.08), transparent 34%),
+        linear-gradient(180deg, #0e1218, #121925 55%, #10161f);
+      color: var(--text);
+    }
+    .wrap {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 28px 18px 40px;
+    }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+    h1 { margin: 0 0 8px; font-size: 1.9rem; }
+    p, .muted { color: var(--muted); }
+    .authbox {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 6px 10px;
+      background: #0f141c;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+    .card {
+      background: rgba(24, 29, 38, 0.92);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 14px 34px rgba(0,0,0,0.22);
+      margin-top: 16px;
+    }
+    h2 {
+      margin: 0 0 8px;
+      font-size: 1.15rem;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      align-items: start;
+    }
+    .tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      margin-top: 16px;
+      padding: 4px;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: rgba(13, 18, 26, 0.72);
+      scrollbar-width: thin;
+    }
+    .tab-button {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid transparent;
+      border-radius: 999px;
+      padding: 9px 13px;
+      font-size: 0.92rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 120ms ease, color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+      flex: 0 0 auto;
+      white-space: nowrap;
+    }
+    .tab-button.active {
+      background: var(--accent-soft);
+      color: var(--text);
+      border-color: rgba(143, 208, 255, 0.28);
+      box-shadow: inset 0 0 0 1px rgba(143, 208, 255, 0.06);
+    }
+    .tab-panel {
+      display: none;
+    }
+    .tab-panel.active {
+      display: block;
+    }
+    @media (max-width: 780px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    input, textarea, select {
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #0f141c;
+      color: var(--text);
+      padding: 12px 13px;
+      font-size: 0.96rem;
+    }
+    select {
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      background-image:
+        linear-gradient(45deg, transparent 50%, #9aa4b2 50%),
+        linear-gradient(135deg, #9aa4b2 50%, transparent 50%);
+      background-position:
+        calc(100% - 18px) calc(50% - 2px),
+        calc(100% - 12px) calc(50% - 2px);
+      background-size: 6px 6px, 6px 6px;
+      background-repeat: no-repeat;
+      padding-right: 38px;
+    }
+    input[type="number"] {
+      appearance: textfield;
+      -moz-appearance: textfield;
+    }
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    textarea {
+      min-height: 120px;
+      resize: vertical;
+      line-height: 1.35;
+    }
+    .row { margin-bottom: 14px; }
+    .row:last-child { margin-bottom: 0; }
+    .hint {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+    .section-lead {
+      margin-bottom: 16px;
+    }
+    .panel-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .compact-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      align-items: start;
+    }
+    .listener-top-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+      gap: 14px;
+      align-items: start;
+    }
+    .option-block {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      background: rgba(12, 17, 24, 0.4);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .option-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(154, 164, 178, 0.12);
+    }
+    .option-head label {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0;
+      font-weight: 700;
+    }
+    .option-head input[type="checkbox"] {
+      width: auto;
+      margin: 0;
+    }
+    .option-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-width: 0;
+    }
+    .option-panel[hidden] {
+      display: none !important;
+    }
+    .stack {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-width: 0;
+    }
+    .stack .row {
+      margin-bottom: 0;
+    }
+    .toggle-block {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      min-height: 100%;
+    }
+    .toggle-row {
+      display: flex;
+      gap: 18px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .toggle-row label {
+      margin: 0;
+      font-weight: 600;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      line-height: 1.35;
+    }
+    .toggle-row input[type="checkbox"] {
+      width: auto;
+      margin: 0;
+      flex: 0 0 auto;
+    }
+    .checkline {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0;
+      font-weight: 600;
+      line-height: 1.35;
+    }
+    .checkline input[type="checkbox"] {
+      width: auto;
+      margin: 0;
+      flex: 0 0 auto;
+    }
+    .inline {
+      display: flex;
+      gap: 18px;
+      flex-wrap: wrap;
+      align-items: center;
+      padding-top: 6px;
+    }
+    .inline label {
+      margin: 0;
+      font-weight: 500;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .buttons {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+    .user-list {
+      display: grid;
+      gap: 14px;
+    }
+    .user-card {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      background: #111720;
+    }
+    .user-card-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .user-card-title {
+      font-weight: 700;
+    }
+    .user-allowed-from {
+      min-height: 92px;
+    }
+    .subtle-box {
+      border: 1px solid rgba(154, 164, 178, 0.14);
+      border-radius: 12px;
+      padding: 12px;
+      background: rgba(10, 14, 20, 0.28);
+    }
+    .subtle-box .hint:first-child {
+      margin-top: 0;
+    }
+    .listener-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+      gap: 14px;
+      align-items: start;
+    }
+    button {
+      border: 0;
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-size: 0.96rem;
+      font-weight: 700;
+      cursor: pointer;
+      background: var(--accent);
+      color: #07111d;
+    }
+    button.secondary {
+      background: #263143;
+      color: var(--text);
+    }
+    button.ghost {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .button-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-size: 0.96rem;
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .button-link.ghost {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .flash {
+      padding: 12px 14px;
+      border-radius: 12px;
+      margin-bottom: 10px;
+      border: 1px solid var(--border);
+    }
+    .flash.success {
+      background: rgba(66, 211, 146, 0.14);
+      border-color: rgba(66, 211, 146, 0.4);
+    }
+    .flash.error {
+      background: rgba(255, 122, 122, 0.14);
+      border-color: rgba(255, 122, 122, 0.4);
+    }
+    code {
+      background: #0f141c;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 2px 6px;
+    }
+    @media (max-width: 780px) {
+      .listener-grid,
+      .compact-grid {
+        grid-template-columns: 1fr;
+      }
+      .listener-top-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div>
+        <h1>smtp2graph admin</h1>
+        <p>Small control panel for your local printer relay.</p>
+      </div>
+      <div class="authbox">
+        <span class="pill">Signed in as {{ username }}</span>
+        <span class="pill">Password mode: {{ auth_mode }}</span>
+        <form method="post" action="{{ url_for('logout') }}">
+          <button type="submit" class="ghost">Log out</button>
+        </form>
+      </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="card">
+          {% for category, message in messages %}
+            <div class="flash {{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <div class="card">
+      <div class="muted">Config file: <code>{{ config_path }}</code></div>
+      <div class="muted">UI port: <code>{{ ui_port }}</code></div>
+      <div class="muted">Use <code>UI_PASSWORD_HASH</code> or <code>UI_PASSWORD_HASH_FILE</code> to avoid plaintext admin passwords.</div>
+    </div>
+
+    <form method="post">
+      <div class="tabs" role="tablist" aria-label="Admin sections">
+        <button type="button" class="tab-button active" data-tab-target="graph" role="tab" aria-selected="true">Graph Setup</button>
+        <button type="button" class="tab-button" data-tab-target="send-advanced" role="tab" aria-selected="false">Delivery</button>
+        <button type="button" class="tab-button" data-tab-target="listener" role="tab" aria-selected="false">SMTP Listener</button>
+        <button type="button" class="tab-button" data-tab-target="users" role="tab" aria-selected="false">SMTP Users</button>
+        <button type="button" class="tab-button" data-tab-target="receive-advanced" role="tab" aria-selected="false">Receive Options</button>
+        <button type="button" class="tab-button" data-tab-target="restrictions" role="tab" aria-selected="false">Restrictions</button>
+        <button type="button" class="tab-button" data-tab-target="rate-limits" role="tab" aria-selected="false">Rate Limits</button>
+        <button type="button" class="tab-button" data-tab-target="proxy" role="tab" aria-selected="false">HTTP Proxy</button>
+      </div>
+
+      <section class="tab-panel active" data-tab-panel="graph">
+        <div class="card">
+          <h2>Graph setup</h2>
+          <div class="hint section-lead">Core Microsoft Graph application registration details. Tenant and Client ID are required in send or full mode.</div>
+          <div class="compact-grid">
+            <div class="row">
+              <label for="tenant">Tenant</label>
+              <input id="tenant" name="tenant" value="{{ config.get('send', {}).get('appReg', {}).get('tenant', '') }}">
+            </div>
+            <div class="row">
+              <label for="client_id">Client ID</label>
+              <input id="client_id" name="client_id" value="{{ config.get('send', {}).get('appReg', {}).get('id', '') }}">
+            </div>
+          </div>
+          <div class="grid">
+            <div class="option-block">
+              <div class="option-head">
+                <label><input type="checkbox" name="use_client_secret" data-optional-target="client-secret-panel" {% if config.get('send', {}).get('appReg', {}).get('secret') %}checked{% endif %}> Use client secret</label>
+              </div>
+              <div id="client-secret-panel" class="option-panel">
+                <div class="row">
+                  <label for="client_secret">Client secret</label>
+                  <input id="client_secret" name="client_secret" type="password" value="{{ config.get('send', {}).get('appReg', {}).get('secret', '') }}">
+                </div>
+              </div>
+            </div>
+            <div class="option-block">
+              <div class="option-head">
+                <label><input type="checkbox" name="use_certificate_auth" data-optional-target="certificate-auth-panel" {% if config.get('send', {}).get('appReg', {}).get('certificate') %}checked{% endif %}> Use client certificate</label>
+              </div>
+              <div id="certificate-auth-panel" class="option-panel">
+                <div class="row">
+                  <label for="certificate_thumbprint">Certificate thumbprint</label>
+                  <input id="certificate_thumbprint" name="certificate_thumbprint" value="{{ config.get('send', {}).get('appReg', {}).get('certificate', {}).get('thumbprint', '') }}" placeholder="certificate thumbprint">
+                </div>
+                <div class="row">
+                  <label for="certificate_private_key_path">Certificate private key path</label>
+                  <input id="certificate_private_key_path" name="certificate_private_key_path" value="{{ config.get('send', {}).get('appReg', {}).get('certificate', {}).get('privateKeyPath', '') }}" placeholder="/certs/client.key">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="tab-panel" data-tab-panel="send-advanced">
+        <div class="card">
+          <h2>Delivery</h2>
+          <div class="hint section-lead">Outbound sending preferences. Turn on only the behaviors you actually want the relay to enforce.</div>
+          <div class="grid">
+            <div class="option-block">
+              <div class="option-head">
+                <label><input type="checkbox" name="use_force_mailbox" data-optional-target="force-mailbox-panel" {% if config.get('send', {}).get('forceMailbox') %}checked{% endif %}> Force sender mailbox</label>
+              </div>
+              <div id="force-mailbox-panel" class="option-panel">
+                <div class="row">
+                  <label for="force_mailbox">Force mailbox</label>
+                  <input id="force_mailbox" name="force_mailbox" value="{{ config.get('send', {}).get('forceMailbox', '') }}">
+                </div>
+              </div>
+            </div>
+            <div class="option-block">
+              <div class="option-head">
+                <label><input type="checkbox" name="use_send_retry" data-optional-target="send-retry-panel" {% if config.get('send', {}).get('retryLimit') is not none or config.get('send', {}).get('retryInterval') is not none %}checked{% endif %}> Enable retries</label>
+              </div>
+              <div id="send-retry-panel" class="option-panel">
+                <div class="grid">
+                  <div class="row">
+                    <label for="send_retry_limit">Retry limit</label>
+                    <input id="send_retry_limit" name="send_retry_limit" type="number" min="0" value="{{ config.get('send', {}).get('retryLimit', '') }}" placeholder="3">
+                  <div class="hint">How many times a failed message should be retried. Set to <code>0</code> to disable retries.</div>
+                </div>
+                  <div class="row">
+                    <label for="send_retry_interval">Retry interval (minutes)</label>
+                    <input id="send_retry_interval" name="send_retry_interval" type="number" min="1" value="{{ config.get('send', {}).get('retryInterval', '') }}" placeholder="5">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="tab-panel" data-tab-panel="listener">
+        <div class="card">
+          <h2>SMTP listener</h2>
+          <div class="hint section-lead">How clients reach the SMTP service, and how TLS is presented to them.</div>
+          <div class="listener-top-grid">
+            <div class="row">
+              <label for="mode">Mode</label>
+              {% set mode = config.get('mode', 'full') %}
+              <select id="mode" name="mode">
+                <option value="full" {{ 'selected' if mode == 'full' else '' }}>full</option>
+                <option value="send" {{ 'selected' if mode == 'send' else '' }}>send</option>
+                <option value="receive" {{ 'selected' if mode == 'receive' else '' }}>receive</option>
+              </select>
+            </div>
+            <div class="row">
+              <label for="receive_port">Receive port</label>
+              <input id="receive_port" name="receive_port" type="number" min="1" max="65535" value="{{ config.get('receive', {}).get('port', 587) }}">
+            </div>
+          </div>
+
+          <div class="listener-grid">
+            <div class="option-block">
+              <div class="option-head">
+                <label><input type="checkbox" name="use_listen_address" data-optional-target="listen-address-panel" {% if config.get('receive', {}).get('listenAddress') %}checked{% endif %}> Bind to a specific IP</label>
+              </div>
+              <div id="listen-address-panel" class="option-panel">
+                <div class="row">
+                  <label for="listen_address">Listen address</label>
+                  <input id="listen_address" name="listen_address" value="{{ config.get('receive', {}).get('listenAddress', '') }}" placeholder="optional">
+                </div>
+              </div>
+              <div class="hint">If you want clients to sign in with SMTP usernames and passwords, turn that on in the <strong>SMTP Users</strong> tab.</div>
+            </div>
+            <div class="option-block">
+              <div class="option-head">
+                <label><input type="checkbox" name="use_tls" data-optional-target="tls-panel" {% if config.get('receive', {}).get('tlsCertPath') or config.get('receive', {}).get('tlsKeyPath') %}checked{% endif %}> Enable TLS certificate</label>
+              </div>
+              <div id="tls-panel" class="option-panel">
+                <div class="row">
+                  <label for="tls_cert_path">TLS cert path</label>
+                  <input id="tls_cert_path" name="tls_cert_path" value="{{ config.get('receive', {}).get('tlsCertPath', '') }}" placeholder="server.crt">
+                  <div class="hint">Path to the TLS certificate file inside the container.</div>
+                  {% if tls_cert_download_available %}
+                    <div class="buttons">
+                      <a href="{{ url_for('download_tls_cert') }}" class="button-link ghost">Download certificate</a>
+                    </div>
+                  {% endif %}
+                </div>
+                <div class="row">
+                  <label for="tls_key_path">TLS key path</label>
+                  <input id="tls_key_path" name="tls_key_path" value="{{ config.get('receive', {}).get('tlsKeyPath', '') }}" placeholder="private.key">
+                  <div class="hint">Path to the TLS private key file inside the container.</div>
+                </div>
+                <div class="subtle-box">
+                  <div class="toggle-row">
+                    <label class="checkline"><input type="checkbox" name="secure" {% if config.get('receive', {}).get('secure') %}checked{% endif %}> <span>Require TLS from connect</span></label>
+                  </div>
+                  <div class="hint">Leave <strong>Require TLS from connect</strong> off for <code>STARTTLS</code>. Turn it on only for clients that expect TLS immediately after connecting.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="tab-panel" data-tab-panel="receive-advanced">
+        <div class="card">
+          <h2>Receive options</h2>
+          <div class="hint section-lead">Optional SMTP receive behaviors beyond the basic listener settings.</div>
+          <div class="grid">
+            <div class="option-block">
+              <div class="option-head">
+                <label><input type="checkbox" name="use_receive_max_size" data-optional-target="max-size-panel" {% if config.get('receive', {}).get('maxSize') %}checked{% endif %}> Limit message size</label>
+              </div>
+              <div id="max-size-panel" class="option-panel">
+                <div class="row">
+                  <label for="receive_max_size">Maximum message size</label>
+                  <input id="receive_max_size" name="receive_max_size" value="{{ config.get('receive', {}).get('maxSize', '') }}" placeholder="25m">
+                  <div class="hint">Accepted format: number with <code>k</code> or <code>m</code>, for example <code>25m</code>.</div>
+                </div>
+              </div>
+            </div>
+            <div class="option-block">
+              <div class="option-head">
+                <label><input type="checkbox" name="use_receive_banner" data-optional-target="banner-panel" {% if config.get('receive', {}).get('banner') %}checked{% endif %}> Use custom banner</label>
+              </div>
+              <div id="banner-panel" class="option-panel">
+                <div class="row">
+                  <label for="receive_banner">SMTP banner</label>
+                  <input id="receive_banner" name="receive_banner" value="{{ config.get('receive', {}).get('banner', '') }}" placeholder="optional">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="tab-panel" data-tab-panel="users">
+        <div class="card">
+          <h2>SMTP users</h2>
+          <div class="hint section-lead">Optional. Leave this off if your printers are buggy with usernames and passwords.</div>
+          <div class="option-block">
+            <div class="option-head">
+              <label><input type="checkbox" name="require_auth" data-optional-target="smtp-users-panel" {% if config.get('receive', {}).get('requireAuth') %}checked{% endif %}> Require SMTP auth</label>
+            </div>
+            <div id="smtp-users-panel" class="option-panel">
+              <div class="subtle-box">
+                <div class="hint">These SMTP passwords are stored in the relay config as plaintext because that is how smtp2graph currently works.</div>
+              </div>
+              <div id="smtp-user-list" class="user-list">
+                {% for user in config.get('receive', {}).get('users', []) %}
+                  <div class="user-card" data-user-card>
+                    <div class="user-card-header">
+                      <div class="user-card-title">SMTP user {{ loop.index }}</div>
+                      <button type="button" class="ghost" data-remove-user>Remove</button>
+                    </div>
+                    <div class="grid">
+                      <div class="row">
+                        <label>Username</label>
+                        <input name="smtp_username" value="{{ user.get('username', '') }}" placeholder="printer1">
+                      </div>
+                      <div class="row">
+                        <label>Password</label>
+                        <input name="smtp_password" type="password" value="{{ user.get('password', '') }}" placeholder="password">
+                      </div>
+                    </div>
+                    <div class="row">
+                      <label>Allowed From addresses</label>
+                      <textarea class="user-allowed-from" name="smtp_user_allowed_from" placeholder="One address per line">{{ "\n".join(user.get('allowedFrom', [])) }}</textarea>
+                      <div class="hint">Optional per-user sender restriction. Leave empty to use the global allowed-from list.</div>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+              <div class="buttons">
+                <button type="button" class="ghost" id="add-smtp-user">Add SMTP user</button>
+              </div>
+              <div class="subtle-box">
+                <label class="checkline"><input type="checkbox" name="allow_insecure_auth" {% if config.get('receive', {}).get('allowInsecureAuth') %}checked{% endif %}> <span>Allow insecure auth</span></label>
+                <div class="hint">Only applies when TLS certificates are configured. Lets clients authenticate without first switching to a secure connection.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="tab-panel" data-tab-panel="restrictions">
+        <div class="card">
+          <h2>Restrictions</h2>
+          <div class="hint section-lead">Control which clients can connect and which sender addresses the relay accepts.</div>
+          <div class="grid">
+            <div class="option-block">
+              <div class="option-head">
+                <label><input type="checkbox" name="use_allowed_from" data-optional-target="allowed-from-panel" {% if config.get('receive', {}).get('allowedFrom') %}checked{% endif %}> Restrict sender addresses</label>
+              </div>
+              <div id="allowed-from-panel" class="option-panel">
+                <div class="row">
+                  <label for="allowed_from">Allowed From addresses</label>
+                  <textarea id="allowed_from" name="allowed_from" placeholder="One address per line">{{ "\n".join(config.get('receive', {}).get('allowedFrom', [])) }}</textarea>
+                </div>
+              </div>
+            </div>
+            <div class="option-block">
+              <div class="option-head">
+                <label><input type="checkbox" name="use_ip_whitelist" data-optional-target="ip-whitelist-panel" {% if config.get('receive', {}).get('ipWhitelist') %}checked{% endif %}> Restrict client IPs</label>
+              </div>
+              <div id="ip-whitelist-panel" class="option-panel">
+                <div class="row">
+                  <label for="ip_whitelist">IP whitelist</label>
+                  <textarea id="ip_whitelist" name="ip_whitelist" placeholder="One IP or subnet per line">{{ "\n".join(config.get('receive', {}).get('ipWhitelist', [])) }}</textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="tab-panel" data-tab-panel="rate-limits">
+        <div class="card">
+          <h2>Rate limits</h2>
+          <div class="hint section-lead">Optional connection throttling and brute-force protection.</div>
+          <div class="grid">
+            <div class="option-block">
+              <div class="option-head">
+                <label><input type="checkbox" name="use_rate_limit" data-optional-target="rate-limit-panel" {% if config.get('receive', {}).get('rateLimit') %}checked{% endif %}> Limit connection rate</label>
+              </div>
+              <div id="rate-limit-panel" class="option-panel">
+                <div class="grid">
+                  <div class="row">
+                    <label for="rate_limit_duration">Window (seconds)</label>
+                    <input id="rate_limit_duration" name="rate_limit_duration" type="number" min="1" value="{{ config.get('receive', {}).get('rateLimit', {}).get('duration', '') }}" placeholder="600">
+                  </div>
+                  <div class="row">
+                    <label for="rate_limit_limit">Max connections</label>
+                    <input id="rate_limit_limit" name="rate_limit_limit" type="number" min="1" value="{{ config.get('receive', {}).get('rateLimit', {}).get('limit', '') }}" placeholder="10000">
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="option-block">
+              <div class="option-head">
+                <label><input type="checkbox" name="use_auth_limit" data-optional-target="auth-limit-panel" {% if config.get('receive', {}).get('authLimit') %}checked{% endif %}> Limit failed auth attempts</label>
+              </div>
+              <div id="auth-limit-panel" class="option-panel">
+                <div class="grid">
+                  <div class="row">
+                    <label for="auth_limit_duration">Window (seconds)</label>
+                    <input id="auth_limit_duration" name="auth_limit_duration" type="number" min="1" value="{{ config.get('receive', {}).get('authLimit', {}).get('duration', '') }}" placeholder="60">
+                  </div>
+                  <div class="row">
+                    <label for="auth_limit_limit">Max failures</label>
+                    <input id="auth_limit_limit" name="auth_limit_limit" type="number" min="1" value="{{ config.get('receive', {}).get('authLimit', {}).get('limit', '') }}" placeholder="10">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="tab-panel" data-tab-panel="proxy">
+        <div class="card">
+          <h2>HTTP proxy</h2>
+          <div class="hint section-lead">Optional outbound proxy settings for Microsoft Graph traffic.</div>
+          <div class="option-block">
+            <div class="option-head">
+              <label><input type="checkbox" name="use_http_proxy" data-optional-target="proxy-panel" {% if config.get('httpProxy') %}checked{% endif %}> Route outbound traffic through a proxy</label>
+            </div>
+            <div id="proxy-panel" class="option-panel">
+              <div class="grid">
+                <div class="row">
+                  <label for="proxy_host">Proxy host</label>
+                  <input id="proxy_host" name="proxy_host" value="{{ config.get('httpProxy', {}).get('host', '') }}" placeholder="proxy.example.com">
+                </div>
+                <div class="row">
+                  <label for="proxy_port">Proxy port</label>
+                  <input id="proxy_port" name="proxy_port" type="number" min="1" max="65535" value="{{ config.get('httpProxy', {}).get('port', '') }}" placeholder="8080">
+                </div>
+              </div>
+              <div class="grid">
+                <div class="row">
+                  <label for="proxy_protocol">Protocol</label>
+                  {% set proxy_protocol = config.get('httpProxy', {}).get('protocol', 'http') %}
+                  <select id="proxy_protocol" name="proxy_protocol">
+                    <option value="http" {{ 'selected' if proxy_protocol == 'http' else '' }}>http</option>
+                    <option value="https" {{ 'selected' if proxy_protocol == 'https' else '' }}>https</option>
+                  </select>
+                </div>
+              </div>
+              <div class="option-block" style="margin-top: 14px;">
+                <div class="option-head">
+                  <label><input type="checkbox" name="use_proxy_auth" data-optional-target="proxy-auth-panel" {% if config.get('httpProxy', {}).get('username') or config.get('httpProxy', {}).get('password') %}checked{% endif %}> Use proxy authentication</label>
+                </div>
+                <div id="proxy-auth-panel" class="option-panel">
+                  <div class="grid">
+                    <div class="row">
+                      <label for="proxy_username">Proxy username</label>
+                      <input id="proxy_username" name="proxy_username" value="{{ config.get('httpProxy', {}).get('username', '') }}" placeholder="optional">
+                    </div>
+                    <div class="row">
+                      <label for="proxy_password">Proxy password</label>
+                      <input id="proxy_password" name="proxy_password" type="password" value="{{ config.get('httpProxy', {}).get('password', '') }}" placeholder="optional">
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="card">
+        <div class="buttons">
+          <button type="submit" name="action" value="save">Save config</button>
+          <button type="submit" class="secondary" name="action" value="save_restart">Save and restart smtp2graph</button>
+        </div>
+      </div>
+    </form>
+  </div>
+  <template id="smtp-user-template">
+    <div class="user-card" data-user-card>
+      <div class="user-card-header">
+        <div class="user-card-title">SMTP user</div>
+        <button type="button" class="ghost" data-remove-user>Remove</button>
+      </div>
+      <div class="grid">
+        <div class="row">
+          <label>Username</label>
+          <input name="smtp_username" placeholder="printer1">
+        </div>
+        <div class="row">
+          <label>Password</label>
+          <input name="smtp_password" type="password" placeholder="password">
+        </div>
+      </div>
+      <div class="row">
+        <label>Allowed From addresses</label>
+        <textarea class="user-allowed-from" name="smtp_user_allowed_from" placeholder="One address per line"></textarea>
+        <div class="hint">Optional per-user sender restriction. Leave empty to use the global allowed-from list.</div>
+      </div>
+    </div>
+  </template>
+  <script>
+    const tabButtons = Array.from(document.querySelectorAll('[data-tab-target]'));
+    const tabPanels = Array.from(document.querySelectorAll('[data-tab-panel]'));
+    const optionalToggles = Array.from(document.querySelectorAll('[data-optional-target]'));
+    const smtpUserList = document.getElementById('smtp-user-list');
+    const smtpUserTemplate = document.getElementById('smtp-user-template');
+    const addSmtpUserButton = document.getElementById('add-smtp-user');
+    const activeTabStorageKey = 'smtp2graph-admin-active-tab';
+
+    function activateTab(tabName) {
+      tabButtons.forEach((button) => {
+        const isActive = button.dataset.tabTarget === tabName;
+        button.classList.toggle('active', isActive);
+        button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      });
+
+      tabPanels.forEach((panel) => {
+        panel.classList.toggle('active', panel.dataset.tabPanel === tabName);
+      });
+
+      localStorage.setItem(activeTabStorageKey, tabName);
+    }
+
+    function syncOptionalToggle(toggle) {
+      const target = document.getElementById(toggle.dataset.optionalTarget);
+      if (!target) return;
+
+      const isEnabled = toggle.checked;
+      target.hidden = !isEnabled;
+      target.querySelectorAll('input, select, textarea, button').forEach((field) => {
+        field.disabled = !isEnabled;
+      });
+
+      if (isEnabled) {
+        target.querySelectorAll('[data-optional-target]').forEach((nestedToggle) => {
+          syncOptionalToggle(nestedToggle);
+        });
+      }
+    }
+
+    function updateUserTitles() {
+      smtpUserList.querySelectorAll('[data-user-card]').forEach((card, index) => {
+        const title = card.querySelector('.user-card-title');
+        if (title) title.textContent = `SMTP user ${index + 1}`;
+      });
+    }
+
+    function bindUserCard(card) {
+      const removeButton = card.querySelector('[data-remove-user]');
+      if (!removeButton) return;
+      removeButton.addEventListener('click', () => {
+        const cards = smtpUserList.querySelectorAll('[data-user-card]');
+        if (cards.length === 1) {
+          card.querySelectorAll('input, textarea').forEach((field) => {
+            field.value = '';
+          });
+          return;
+        }
+        card.remove();
+        updateUserTitles();
+      });
+    }
+
+    addSmtpUserButton.addEventListener('click', () => {
+      const fragment = smtpUserTemplate.content.cloneNode(true);
+      const card = fragment.querySelector('[data-user-card]');
+      bindUserCard(card);
+      smtpUserList.appendChild(fragment);
+      activateTab('users');
+      updateUserTitles();
+    });
+
+    tabButtons.forEach((button) => {
+      button.addEventListener('click', () => activateTab(button.dataset.tabTarget));
+    });
+
+    optionalToggles.forEach((toggle) => {
+      toggle.addEventListener('change', () => syncOptionalToggle(toggle));
+    });
+
+    smtpUserList.querySelectorAll('[data-user-card]').forEach(bindUserCard);
+    const savedTab = localStorage.getItem(activeTabStorageKey);
+    if (savedTab && tabPanels.some((panel) => panel.dataset.tabPanel === savedTab)) {
+      activateTab(savedTab);
+    } else {
+      activateTab('graph');
+    }
+    optionalToggles.forEach(syncOptionalToggle);
+    updateUserTitles();
+  </script>
+</body>
+</html>

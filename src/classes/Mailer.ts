@@ -7,11 +7,14 @@ import addressparser from 'nodemailer/lib/addressparser';
 import { ConfidentialClientApplication } from '@azure/msal-node';
 import { Config } from './Config';
 import { UnrecoverableError } from './Constants';
+import { prefixedLog } from './Logger';
 import { MsalProxy } from './MsalProxy';
 
 export class MailboxAccessDenied extends UnrecoverableError { }
 export class InvalidMailContent extends UnrecoverableError { }
 export class MessageSizeExceeded extends UnrecoverableError { }
+
+const log = prefixedLog('Mailer');
 
 export class Mailer
 {
@@ -45,12 +48,20 @@ export class Mailer
                 sender = senderObj.address;
             }
 
+            const sendMeta = {
+                filePath,
+                filename: filePath.split(/[/\\]/).pop(),
+                sender,
+                fileSize: this.#getFileSize(filePath),
+            };
+
             // Fetch an accesstoken if needed
             const token = await this.#aquireToken();
 
             // Send the message
             const readStream = fs.createReadStream(filePath);
             try {
+                log('info', `Sending message to Microsoft Graph`, sendMeta);
                 await this.#retryableRequest({
                     method: 'post',
                     url: `https://graph.microsoft.com/v1.0/users/${sender}/sendMail`,
@@ -62,6 +73,7 @@ export class Mailer
                     },
                     proxy: Config.httpProxyConfig,
                 });
+                log('info', `Message sent to Microsoft Graph`, sendMeta);
             } catch(error: any) {
                 if(isAxiosError(error) && error.response?.data)
                 {
@@ -120,6 +132,12 @@ export class Mailer
                     else
                         wait *= 2;
 
+                    log('warn', `Retrying Graph request after transient failure`, {
+                        status: error.response?.status,
+                        retryCount,
+                        retryLimit,
+                        waitMs: wait,
+                    });
                     await this.#sleep(wait);
 
                     return retry();
@@ -140,6 +158,15 @@ export class Mailer
     static #sleep(ms: number): Promise<void>
     {
         return new Promise(r=>setTimeout(r, ms));
+    }
+
+    static #getFileSize(filePath: string)
+    {
+        try {
+            return fs.statSync(filePath).size;
+        } catch {
+            return undefined;
+        }
     }
 
     /** Get sender address from EML/RFC822 data */
@@ -174,9 +201,11 @@ export class Mailer
         return this.#aquireTokenMutex.runExclusive(async ()=>{
             if(!this.#msalClient) throw new UnrecoverableError('Trying to login without an application registration');
 
+            log('verbose', `Requesting Microsoft Graph access token`);
             const res = await this.#msalClient.acquireTokenByClientCredential({
                 scopes: ['https://graph.microsoft.com/.default'],
             });
+            log('verbose', `Received Microsoft Graph access token`);
             return res?.accessToken!;
         });
     }

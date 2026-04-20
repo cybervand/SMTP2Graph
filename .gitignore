@@ -5,3 +5,6 @@ config.yml
 /wix
 *.log
 .env
+__pycache__/
+*.pyc
+plugin-ui/test-data/.smtp2graph-admin-secret

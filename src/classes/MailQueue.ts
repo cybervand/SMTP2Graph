@@ -58,16 +58,19 @@ export class MailQueue
     async #onFileAdded(filePath: string)
     {
         const filename = path.basename(filePath);
-        log('verbose', `File "${filename}" appeared in the queue`);
+        log('info', `Processing queued message`, {filename, filePath});
         
         try {
             await Mailer.sendEml(filePath);
             this.remove(filePath);
             this.#removeFromRetryQueue(filename);
+            log('info', `Queued message delivered`, {filename});
         } catch(error) {
             log('error', `Failed to send message "${filename}"`, {error, filename});
             if(!(error instanceof UnrecoverableError))
                 this.#addToRetryQueue(filename);
+            else
+                log('warn', `Message marked unrecoverable`, {filename});
         }
     }
 
@@ -81,6 +84,11 @@ export class MailQueue
                 try {
                     this.#retryQueue.delete(filename); // Remove from queue
                     fs.renameSync(path.join(this.#queuePath, filename), path.join(this.#failedPath, filename)); // Move to failed dir
+                    log('warn', `Retry limit exceeded, moved message to failed`, {
+                        filename,
+                        retryCount: data.retryCount,
+                        retryLimit: Config.sendRetryLimit,
+                    });
                 } catch(error) {
                     log('error', `Error moving file "${filename}" from queue to failed dir`, {error, filename});
                 }
@@ -89,7 +97,14 @@ export class MailQueue
             {
                 const retryAfter = new Date();
                 retryAfter.setMinutes(retryAfter.getMinutes()+Config.sendRetryInterval);
-                this.#retryQueue.set(filename, {retryAfter, retryCount: (data?.retryCount || 0)+1});
+                const retryCount = (data?.retryCount || 0)+1;
+                this.#retryQueue.set(filename, {retryAfter, retryCount});
+                log('warn', `Scheduled message retry`, {
+                    filename,
+                    retryCount,
+                    retryLimit: Config.sendRetryLimit,
+                    retryAfter: retryAfter.toISOString(),
+                });
             }
 
             // Start/stop the queue if necessary
@@ -103,6 +118,7 @@ export class MailQueue
         {
             this.#retryQueue.delete(filename);
             this.#startStopRetryQueue(); // Stop the queue if it's empty
+            log('info', `Removed message from retry queue`, {filename});
         }
     }
 
@@ -127,7 +143,13 @@ export class MailQueue
             for(const [filename,data] of this.#retryQueue)
             {
                 if(data.retryAfter.getTime() < Date.now()) // This item should be retried?
+                {
+                    log('info', `Retrying queued message`, {
+                        filename,
+                        retryCount: data.retryCount,
+                    });
                     await this.#onFileAdded(path.join(this.#queuePath, filename));
+                }
             }
         });
     }
@@ -140,7 +162,7 @@ export class MailQueue
         const attempt = (tries = 0) => {
             try {
                 fs.renameSync(filePath, dest);
-                log('verbose', `Moved file "${filename}" to queue`);
+                log('info', `Queued message for delivery`, {filename, filePath: dest});
             } catch(error: any) {
                 // On Windows the file may still be locked for a brief moment after
                 // the stream closes.  Instead of failing permanently we retry a few
@@ -161,6 +183,7 @@ export class MailQueue
     {
         try {
             fs.unlinkSync(filePath);
+            log('info', `Removed message from queue`, {filePath, filename: path.basename(filePath)});
         } catch(error) {
             log('error', `Error while deleting "${filePath}" from queue`, {error});
         }

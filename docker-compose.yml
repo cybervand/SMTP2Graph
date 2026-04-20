@@ -1,0 +1,43 @@
+services:
+  smtp2graph:
+    image: smtp2graph/smtp2graph:latest
+    container_name: ${SMTP2GRAPH_CONTAINER_NAME:-smtp2graph}
+    restart: unless-stopped
+    networks:
+      smtp_relay_net:
+        ipv4_address: ${SMTP2GRAPH_CONTAINER_IP:-172.30.50.10}
+    ports:
+      - "${SMTP2GRAPH_BIND_IP:-192.168.180.41}:${SMTP2GRAPH_SMTP_PORT:-587}:587"
+    volumes:
+      - ${SMTP2GRAPH_DATA_PATH:-./plugin-ui/data}:/data
+      - ${SMTP2GRAPH_CERTS_HOST_PATH:-/etc/letsencrypt}:${SMTP2GRAPH_CERTS_CONTAINER_PATH:-/certs}:ro
+
+  smtp2graph-admin:
+    build: ./plugin-ui/ui
+    container_name: ${SMTP2GRAPH_ADMIN_CONTAINER_NAME:-smtp2graph-admin}
+    restart: unless-stopped
+    depends_on:
+      - smtp2graph
+    environment:
+      UI_PORT: "${SMTP2GRAPH_ADMIN_INTERNAL_PORT:-16666}"
+      UI_USERNAME: "${SMTP2GRAPH_ADMIN_USERNAME:-admin}"
+      UI_PASSWORD_HASH_FILE: "${SMTP2GRAPH_ADMIN_PASSWORD_HASH_FILE:-/config/admin-password.hash}"
+      UI_SECURE_COOKIES: "${SMTP2GRAPH_ADMIN_SECURE_COOKIES:-true}"
+      CONFIG_PATH: "${SMTP2GRAPH_ADMIN_CONFIG_PATH:-/config/config.yml}"
+      SMTP2GRAPH_CONTAINER: "${SMTP2GRAPH_CONTAINER_NAME:-smtp2graph}"
+    networks:
+      smtp_relay_net:
+        ipv4_address: ${SMTP2GRAPH_ADMIN_CONTAINER_IP:-172.30.50.11}
+    ports:
+      - "${SMTP2GRAPH_BIND_IP:-192.168.180.41}:${SMTP2GRAPH_ADMIN_PORT:-16666}:${SMTP2GRAPH_ADMIN_INTERNAL_PORT:-16666}"
+    volumes:
+      - ${SMTP2GRAPH_DATA_PATH:-./plugin-ui/data}:/config
+      - ${SMTP2GRAPH_CERTS_HOST_PATH:-/etc/letsencrypt}:${SMTP2GRAPH_CERTS_CONTAINER_PATH:-/certs}:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+
+networks:
+  smtp_relay_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${SMTP2GRAPH_DOCKER_SUBNET:-172.30.50.0/24}
