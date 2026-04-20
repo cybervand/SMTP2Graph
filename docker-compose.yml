@@ -7,7 +7,7 @@ services:
       smtp_relay_net:
         ipv4_address: ${SMTP2GRAPH_CONTAINER_IP:-172.30.50.10}
     ports:
-      - "${SMTP2GRAPH_BIND_IP:-192.168.180.41}:${SMTP2GRAPH_SMTP_PORT:-587}:587"
+      - "${SMTP2GRAPH_BIND_IP:-127.0.0.1}:${SMTP2GRAPH_SMTP_PORT:-587}:587"
     volumes:
       - ${SMTP2GRAPH_DATA_PATH:-./plugin-ui/data}:/data
       - ${SMTP2GRAPH_CERTS_HOST_PATH:-/etc/letsencrypt}:${SMTP2GRAPH_CERTS_CONTAINER_PATH:-/certs}:ro
@@ -29,7 +29,7 @@ services:
       smtp_relay_net:
         ipv4_address: ${SMTP2GRAPH_ADMIN_CONTAINER_IP:-172.30.50.11}
     ports:
-      - "${SMTP2GRAPH_BIND_IP:-192.168.180.41}:${SMTP2GRAPH_ADMIN_PORT:-16666}:${SMTP2GRAPH_ADMIN_INTERNAL_PORT:-16666}"
+      - "${SMTP2GRAPH_BIND_IP:-127.0.0.1}:${SMTP2GRAPH_ADMIN_PORT:-16666}:${SMTP2GRAPH_ADMIN_INTERNAL_PORT:-16666}"
     volumes:
       - ${SMTP2GRAPH_DATA_PATH:-./plugin-ui/data}:/config
       - ${SMTP2GRAPH_CERTS_HOST_PATH:-/etc/letsencrypt}:${SMTP2GRAPH_CERTS_CONTAINER_PATH:-/certs}:ro
