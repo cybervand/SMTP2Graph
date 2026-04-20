@@ -41,7 +41,10 @@ def env_or_file(name: str, *file_names: str) -> str | None:
     for file_name in file_names:
         file_path = os.environ.get(file_name)
         if file_path:
-            return Path(file_path).read_text(encoding="utf-8").strip()
+            path = Path(file_path)
+            if not path.exists():
+                continue
+            return path.read_text(encoding="utf-8").strip()
 
     return None
 
