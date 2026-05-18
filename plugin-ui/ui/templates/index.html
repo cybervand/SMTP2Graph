@@ -402,6 +402,7 @@
       <div class="authbox">
         <span class="pill">Signed in as {{ username }}</span>
         <span class="pill">Password mode: {{ auth_mode }}</span>
+        <a href="{{ url_for('activity') }}" class="button-link ghost">View activity</a>
         <form method="post" action="{{ url_for('logout') }}">
           <button type="submit" class="ghost">Log out</button>
         </form>

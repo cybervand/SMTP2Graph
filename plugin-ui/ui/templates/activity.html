@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>smtp2graph activity</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="refresh" content="15">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #10141b;
+      --panel: #1a202b;
+      --muted: #9aa4b2;
+      --text: #eef2f7;
+      --accent: #8fd0ff;
+      --border: #2a3345;
+      --ok: #42d392;
+      --fail: #ff7a7a;
+      --warn: #f7c948;
+      --pending: #9aa4b2;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background:
+        radial-gradient(circle at top, rgba(143, 208, 255, 0.08), transparent 34%),
+        linear-gradient(180deg, #0e1218, #121925 55%, #10161f);
+      color: var(--text);
+    }
+    .wrap {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 28px 18px 40px;
+    }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+    h1 { margin: 0 0 8px; font-size: 1.9rem; }
+    p, .muted { color: var(--muted); }
+    .authbox {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 6px 10px;
+      background: #0f141c;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+    .button-link, button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-size: 0.92rem;
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .card {
+      background: rgba(24, 29, 38, 0.92);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px;
+      margin-top: 16px;
+    }
+    .flow {
+      border-left: 4px solid var(--pending);
+      padding-left: 14px;
+    }
+    .flow.success { border-left-color: var(--ok); }
+    .flow.fail { border-left-color: var(--fail); }
+    .flow + .flow { margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(154, 164, 178, 0.12); }
+    .flow-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: baseline;
+    }
+    .flow-title {
+      font-weight: 700;
+      font-size: 1rem;
+    }
+    .flow-time {
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+    .flow-addrs {
+      margin-top: 6px;
+      color: var(--text);
+      font-size: 0.95rem;
+    }
+    .flow-addrs .from { color: var(--muted); }
+    .flow-addrs .arrow { margin: 0 8px; color: var(--muted); }
+    .stage-list {
+      margin: 10px 0 0;
+      padding: 0;
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .stage {
+      display: flex;
+      gap: 10px;
+      align-items: baseline;
+      font-size: 0.9rem;
+    }
+    .stage .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      transform: translateY(2px);
+    }
+    .stage.ok .dot { background: var(--ok); }
+    .stage.fail .dot { background: var(--fail); }
+    .stage.warn .dot { background: var(--warn); }
+    .stage.pending .dot { background: var(--pending); }
+    .stage .stage-label { flex: 1; }
+    .stage .stage-time { color: var(--muted); font-variant-numeric: tabular-nums; }
+    .stage .stage-detail {
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin-left: 18px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .badge.success { background: rgba(66, 211, 146, 0.16); color: var(--ok); }
+    .badge.fail { background: rgba(255, 122, 122, 0.16); color: var(--fail); }
+    .badge.pending { background: rgba(154, 164, 178, 0.16); color: var(--pending); }
+    .empty {
+      text-align: center;
+      color: var(--muted);
+      padding: 24px;
+    }
+    code {
+      background: #0f141c;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 2px 6px;
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div>
+        <h1>SMTP2Graph activity</h1>
+        <p>Recent mail flows. Auto-refreshes every 15 seconds.</p>
+      </div>
+      <div class="authbox">
+        <span class="pill">Signed in as {{ username }}</span>
+        <a href="{{ url_for('index') }}" class="button-link">Back to config</a>
+        <form method="post" action="{{ url_for('logout') }}" style="margin:0;">
+          <button type="submit">Log out</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="muted">Log directory: <code>{{ log_dir }}</code></div>
+    </div>
+
+    {% if not flows %}
+      <div class="card">
+        <div class="empty">No mail activity in the log yet. Send a message through the relay and refresh.</div>
+      </div>
+    {% else %}
+      <div class="card">
+        {% for flow in flows %}
+          <div class="flow {{ flow.status }}">
+            <div class="flow-head">
+              <div>
+                <span class="badge {{ flow.status }}">
+                  {% if flow.status == 'success' %}Delivered{% elif flow.status == 'fail' %}Failed{% else %}In progress{% endif %}
+                </span>
+                <span class="flow-title">{{ flow.client_ip or 'unknown sender' }}{% if flow.client_host %} ({{ flow.client_host }}){% endif %}</span>
+              </div>
+              <div class="flow-time">{{ flow.started_at }}{% if flow.ended_at and flow.ended_at != flow.started_at %} → {{ flow.ended_at }}{% endif %}</div>
+            </div>
+            <div class="flow-addrs">
+              <span class="from">{{ flow.from or '—' }}</span>
+              <span class="arrow">→</span>
+              <span class="to">{{ flow.recipients | join(', ') if flow.recipients else '—' }}</span>
+            </div>
+            <ul class="stage-list">
+              {% for stage in flow.stages %}
+                <li class="stage {{ stage.status }}">
+                  <span class="dot"></span>
+                  <span class="stage-label">{{ stage.label }}</span>
+                  <span class="stage-time">{{ stage.time }}</span>
+                </li>
+                {% if stage.detail %}
+                  <li class="stage-detail">{{ stage.detail }}</li>
+                {% endif %}
+              {% endfor %}
+            </ul>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+</body>
+</html>

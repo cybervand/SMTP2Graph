@@ -1,6 +1,8 @@
+import json
 import os
 import secrets
 from copy import deepcopy
+from datetime import datetime
 from hmac import compare_digest
 from functools import wraps
 from pathlib import Path
@@ -13,9 +15,11 @@ from werkzeug.security import check_password_hash, generate_password_hash
 app = Flask(__name__)
 
 CONFIG_PATH = Path(os.environ.get("CONFIG_PATH", "/config/config.yml"))
+LOG_DIR = Path(os.environ.get("SMTP2GRAPH_LOG_DIR", str(CONFIG_PATH.parent / "logs")))
 SMTP2GRAPH_CONTAINER = os.environ.get("SMTP2GRAPH_CONTAINER", "smtp2graph")
 UI_USERNAME = os.environ.get("UI_USERNAME", "admin")
 UI_PORT = int(os.environ.get("UI_PORT", "16666"))
+ACTIVITY_MAX_LINES = int(os.environ.get("SMTP2GRAPH_ACTIVITY_MAX_LINES", "5000"))
 SECRET_KEY_PATH = Path(
     os.environ.get(
         "UI_SECRET_KEY_FILE",
@@ -199,6 +203,171 @@ def setup_admin():
 def logout():
     session.clear()
     return redirect(url_for("login"))
+
+
+def _format_log_time(raw: str) -> str:
+    if not raw:
+        return ""
+    try:
+        return datetime.fromisoformat(raw.replace("Z", "+00:00")).strftime("%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        return raw
+
+
+def _read_log_events(max_lines: int) -> list[dict]:
+    log_file = LOG_DIR / "combined.log"
+    if not log_file.exists():
+        return []
+
+    try:
+        with log_file.open("r", encoding="utf-8", errors="replace") as f:
+            lines = f.readlines()[-max_lines:]
+    except OSError:
+        return []
+
+    events: list[dict] = []
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            events.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    return events
+
+
+def _stage_from_event(evt: dict) -> tuple[str, str, str | None] | None:
+    msg = evt.get("message", "") or ""
+    level = evt.get("level", "info")
+
+    if "[SMTPServer] Connection accepted" in msg:
+        return ("Received via SMTP", "ok", None)
+    if "[SMTPServer] Connection rejected" in msg:
+        return ("Connection rejected", "fail", msg.split("] ", 1)[-1])
+    if "[SMTPServer] Authentication succeeded" in msg:
+        return ("Authenticated", "ok", None)
+    if "[SMTPServer] Authentication" in msg and ("failed" in msg or "rejected" in msg):
+        return ("Authentication failed", "fail", msg.split("] ", 1)[-1])
+    if "[SMTPServer] MAIL FROM accepted" in msg:
+        return ("MAIL FROM accepted", "ok", None)
+    if "[SMTPServer] MAIL FROM rejected" in msg:
+        return ("MAIL FROM rejected", "fail", msg.split("] ", 1)[-1])
+    if "[SMTPServer] Message accepted for delivery" in msg:
+        return ("Accepted for delivery", "ok", None)
+    if "[SMTPServer] Message rejected" in msg:
+        return ("Message rejected", "fail", msg.split("] ", 1)[-1])
+    if "[MailQueue] Queued message for delivery" in msg:
+        return ("Queued", "ok", None)
+    if "[Mailer] Sending message to Microsoft Graph" in msg:
+        return ("Sending to Microsoft Graph", "pending", None)
+    if "[Mailer] Message sent to Microsoft Graph" in msg:
+        return ("Sent to Microsoft Graph", "ok", None)
+    if "[Mailer] Retrying Graph request" in msg:
+        return ("Graph retry", "warn", str(evt.get("error") or ""))
+    if "[MailQueue] Queued message delivered" in msg:
+        return ("Delivered", "ok", None)
+    if level == "error":
+        return ("Error", "fail", str(evt.get("error") or msg))
+    return None
+
+
+def _build_flow(session_id: str, events: list[dict]) -> dict:
+    events.sort(key=lambda e: e.get("timestamp", ""))
+    client_ip = None
+    client_host = None
+    from_addr = None
+    recipients: list[str] = []
+    stages: list[dict] = []
+    status = "pending"
+    error_msg = None
+
+    for evt in events:
+        if not client_ip and evt.get("remoteAddress"):
+            client_ip = evt["remoteAddress"]
+        host = evt.get("hostNameAppearsAs")
+        if isinstance(host, str) and not client_host:
+            client_host = host
+        if not from_addr and evt.get("from"):
+            from_addr = evt["from"]
+        recips = evt.get("recipients")
+        if isinstance(recips, list) and not recipients:
+            recipients = recips
+
+        stage = _stage_from_event(evt)
+        if not stage:
+            continue
+        label, stage_status, detail = stage
+        stages.append({
+            "label": label,
+            "status": stage_status,
+            "time": _format_log_time(evt.get("timestamp", "")),
+            "detail": detail,
+        })
+        if stage_status == "fail":
+            status = "fail"
+            error_msg = detail or evt.get("message")
+        elif status != "fail" and label in ("Delivered", "Sent to Microsoft Graph"):
+            status = "success"
+
+    started_raw = events[0].get("timestamp", "") if events else ""
+    ended_raw = events[-1].get("timestamp", "") if events else ""
+
+    return {
+        "session_id": session_id,
+        "started_at": _format_log_time(started_raw),
+        "ended_at": _format_log_time(ended_raw),
+        "started_sort": started_raw,
+        "client_ip": client_ip,
+        "client_host": client_host if client_host and client_host not in (False, "false") else None,
+        "from": from_addr,
+        "recipients": recipients,
+        "status": status,
+        "error": error_msg,
+        "stages": stages,
+    }
+
+
+def parse_activity(limit: int = 50) -> list[dict]:
+    events = _read_log_events(ACTIVITY_MAX_LINES)
+    if not events:
+        return []
+
+    filename_to_session: dict[str, str] = {}
+    for evt in events:
+        msg = evt.get("message", "")
+        if "[SMTPServer] Message accepted for delivery" in msg:
+            sid = evt.get("sessionId")
+            fn = evt.get("queuedFile") or evt.get("filename")
+            if sid and fn:
+                filename_to_session[fn] = sid
+
+    sessions: dict[str, list[dict]] = {}
+    for evt in events:
+        sid = evt.get("sessionId")
+        if not sid:
+            fn = evt.get("filename")
+            if fn and fn in filename_to_session:
+                sid = filename_to_session[fn]
+        if not sid:
+            continue
+        sessions.setdefault(sid, []).append(evt)
+
+    flows = [_build_flow(sid, evts) for sid, evts in sessions.items()]
+    flows.sort(key=lambda f: f["started_sort"], reverse=True)
+    return flows[:limit]
+
+
+@app.get("/activity")
+@requires_auth
+def activity():
+    flows = parse_activity(limit=50)
+    return render_template(
+        "activity.html",
+        flows=flows,
+        log_dir=str(LOG_DIR),
+        username=session.get("username", UI_USERNAME),
+    )
 
 
 @app.get("/download/tls-cert")
