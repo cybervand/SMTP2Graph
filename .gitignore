@@ -7,4 +7,6 @@ config.yml
 .env
 __pycache__/
 *.pyc
+.venv/
+.vscode/
 plugin-ui/test-data/.smtp2graph-admin-secret

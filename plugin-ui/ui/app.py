@@ -80,7 +80,6 @@ def load_password_hash() -> tuple[str | None, str]:
 
 
 app.secret_key = load_secret_key()
-UI_PASSWORD_HASH, UI_AUTH_MODE = load_password_hash()
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["SESSION_COOKIE_SECURE"] = (
@@ -88,11 +87,16 @@ app.config["SESSION_COOKIE_SECURE"] = (
 )
 
 
+def current_auth_state() -> tuple[str | None, str]:
+    return load_password_hash()
+
+
 def check_auth(username: str, password: str) -> bool:
-    if not UI_PASSWORD_HASH:
+    password_hash, _ = current_auth_state()
+    if not password_hash:
         return False
     return compare_digest(username, UI_USERNAME) and check_password_hash(
-        UI_PASSWORD_HASH, password
+        password_hash, password
     )
 
 
@@ -101,7 +105,8 @@ def is_authenticated() -> bool:
 
 
 def password_setup_required() -> bool:
-    return UI_PASSWORD_HASH is None
+    password_hash, _ = current_auth_state()
+    return password_hash is None
 
 
 def safe_next_url(next_url: str | None) -> str:
@@ -143,24 +148,21 @@ def login():
 
         flash("Invalid username or password.", "error")
 
+    _, auth_mode = current_auth_state()
     return render_template(
         "login.html",
         next_url=safe_next_url(
             request.args.get("next", request.form.get("next", url_for("index")))
         ),
         username=UI_USERNAME,
-        auth_mode=UI_AUTH_MODE,
+        auth_mode=auth_mode,
     )
 
 
 def save_admin_password(password: str) -> None:
-    global UI_PASSWORD_HASH, UI_AUTH_MODE
-
     PASSWORD_HASH_PATH.parent.mkdir(parents=True, exist_ok=True)
     password_hash = generate_password_hash(password)
     PASSWORD_HASH_PATH.write_text(password_hash, encoding="utf-8")
-    UI_PASSWORD_HASH = password_hash
-    UI_AUTH_MODE = "hash"
 
 
 @app.route("/setup", methods=["GET", "POST"])
@@ -480,6 +482,19 @@ def index():
         else:
             receive.pop("authLimit", None)
 
+        log_level = request.form.get("log_level", "").strip()
+        if is_checked(request.form, "use_log_settings"):
+            log_section = new_config.setdefault("log", {})
+            if log_level:
+                log_section["level"] = log_level
+            else:
+                log_section.pop("level", None)
+            log_section["console"] = is_checked(request.form, "log_console")
+            if not log_section:
+                new_config.pop("log", None)
+        else:
+            new_config.pop("log", None)
+
         proxy_host = request.form.get("proxy_host", "").strip()
         proxy_port_raw = request.form.get("proxy_port", "").strip()
         proxy_protocol = request.form.get("proxy_protocol", "").strip() or "http"
@@ -518,13 +533,14 @@ def index():
 
         return redirect(url_for("index"))
 
+    _, auth_mode = current_auth_state()
     return render_template(
         "index.html",
         config=config,
         ui_port=UI_PORT,
         config_path=str(CONFIG_PATH),
         username=session.get("username", UI_USERNAME),
-        auth_mode=UI_AUTH_MODE,
+        auth_mode=auth_mode,
         tls_cert_download_available=tls_cert_download_available,
     )
 

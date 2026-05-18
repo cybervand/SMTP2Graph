@@ -11,4 +11,4 @@ COPY templates ./templates
 ENV UI_PORT=16666
 EXPOSE 16666
 
-CMD ["python", "app.py"]
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${UI_PORT} --workers 2 --preload --access-logfile - app:app"]

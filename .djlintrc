@@ -1,0 +1,8 @@
+{
+  "profile": "jinja",
+  "extension": "html",
+  "indent": 2,
+  "max_line_length": 200,
+  "max_attribute_length": 200,
+  "ignore": "H006,H013,H030,H031,T002"
+}
