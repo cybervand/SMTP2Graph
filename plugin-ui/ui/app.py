@@ -370,6 +370,30 @@ def activity():
     )
 
 
+@app.post("/activity/clear")
+@requires_auth
+def clear_activity():
+    cleared = []
+    errors = []
+    for name in ("combined.log", "error.log", "exceptions.log"):
+        path = LOG_DIR / name
+        if not path.exists():
+            continue
+        try:
+            path.write_text("", encoding="utf-8")
+            cleared.append(name)
+        except OSError as exc:
+            errors.append(f"{name}: {exc}")
+
+    if cleared:
+        flash(f"Cleared {', '.join(cleared)}.", "success")
+    if errors:
+        flash(f"Failed to clear: {'; '.join(errors)}", "error")
+    if not cleared and not errors:
+        flash("No log files found to clear.", "error")
+    return redirect(url_for("activity"))
+
+
 @app.get("/download/tls-cert")
 @requires_auth
 def download_tls_cert():

@@ -4,7 +4,6 @@
   <meta charset="utf-8">
   <title>smtp2graph activity</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="refresh" content="15">
   <style>
     :root {
       color-scheme: dark;
@@ -71,6 +70,29 @@
       background: transparent;
       color: var(--text);
       border: 1px solid var(--border);
+    }
+    button.danger {
+      color: var(--fail);
+      border-color: rgba(255, 122, 122, 0.4);
+    }
+    button.danger:hover {
+      background: rgba(255, 122, 122, 0.12);
+    }
+    .inline-form { margin: 0; }
+    .flash {
+      padding: 12px 14px;
+      border-radius: 12px;
+      margin-bottom: 10px;
+      border: 1px solid var(--border);
+    }
+    .flash:last-child { margin-bottom: 0; }
+    .flash.success {
+      background: rgba(66, 211, 146, 0.14);
+      border-color: rgba(66, 211, 146, 0.4);
+    }
+    .flash.error {
+      background: rgba(255, 122, 122, 0.14);
+      border-color: rgba(255, 122, 122, 0.4);
     }
     .card {
       background: rgba(24, 29, 38, 0.92);
@@ -177,11 +199,24 @@
       <div class="authbox">
         <span class="pill">Signed in as {{ username }}</span>
         <a href="{{ url_for('index') }}" class="button-link">Back to config</a>
-        <form method="post" action="{{ url_for('logout') }}" style="margin:0;">
+        <form method="post" action="{{ url_for('clear_activity') }}" class="inline-form" onsubmit="return confirm('Clear all log files? This deletes combined.log, error.log, and exceptions.log.');">
+          <button type="submit" class="danger">Clear logs</button>
+        </form>
+        <form method="post" action="{{ url_for('logout') }}" class="inline-form">
           <button type="submit">Log out</button>
         </form>
       </div>
     </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="card">
+          {% for category, message in messages %}
+            <div class="flash {{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
 
     <div class="card">
       <div class="muted">Log directory: <code>{{ log_dir }}</code></div>
@@ -210,21 +245,28 @@
               <span class="to">{{ flow.recipients | join(', ') if flow.recipients else '—' }}</span>
             </div>
             <ul class="stage-list">
-              {% for stage in flow.stages %}
-                <li class="stage {{ stage.status }}">
-                  <span class="dot"></span>
-                  <span class="stage-label">{{ stage.label }}</span>
-                  <span class="stage-time">{{ stage.time }}</span>
-                </li>
-                {% if stage.detail %}
-                  <li class="stage-detail">{{ stage.detail }}</li>
-                {% endif %}
-              {% endfor %}
+              {%- for stage in flow.stages -%}
+              <li class="stage {{ stage.status }}">
+                <span class="dot"></span>
+                <span class="stage-label">{{ stage.label }}</span>
+                <span class="stage-time">{{ stage.time }}</span>
+              </li>
+              {%- if stage.detail -%}
+              <li class="stage-detail">{{ stage.detail }}</li>
+              {%- endif -%}
+              {%- endfor -%}
             </ul>
           </div>
         {% endfor %}
       </div>
     {% endif %}
   </div>
+  <script>
+    setTimeout(() => {
+      if (document.visibilityState === 'visible') {
+        location.reload();
+      }
+    }, 15000);
+  </script>
 </body>
 </html>
