@@ -433,7 +433,6 @@
         <button type="button" class="tab-button" data-tab-target="receive-advanced" role="tab" aria-selected="false">Receive Options</button>
         <button type="button" class="tab-button" data-tab-target="restrictions" role="tab" aria-selected="false">Restrictions</button>
         <button type="button" class="tab-button" data-tab-target="rate-limits" role="tab" aria-selected="false">Rate Limits</button>
-        <button type="button" class="tab-button" data-tab-target="logging" role="tab" aria-selected="false">Logging</button>
         <button type="button" class="tab-button" data-tab-target="proxy" role="tab" aria-selected="false">HTTP Proxy</button>
       </div>
 
@@ -732,40 +731,6 @@
                   <div class="row">
                     <label for="auth_limit_limit">Max failures</label>
                     <input id="auth_limit_limit" name="auth_limit_limit" type="number" min="1" value="{{ config.get('receive', {}).get('authLimit', {}).get('limit', '') }}" placeholder="10">
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="tab-panel" data-tab-panel="logging">
-        <div class="card">
-          <h2>Logging</h2>
-          <div class="hint section-lead">Control how verbose smtp2graph is. Files live in <code>/data/logs/</code> inside the container.</div>
-          <div class="option-block">
-            <div class="option-head">
-              <label><input type="checkbox" name="use_log_settings" data-optional-target="log-panel" {% if config.get('log') %}checked{% endif %}> Override default logging</label>
-            </div>
-            <div id="log-panel" class="option-panel">
-              <div class="grid">
-                <div class="row">
-                  <label for="log_level">Log level</label>
-                  {% set log_level = config.get('log', {}).get('level', 'info') %}
-                  <select id="log_level" name="log_level">
-                    <option value="error" {{ 'selected' if log_level == 'error' else '' }}>error</option>
-                    <option value="warn" {{ 'selected' if log_level == 'warn' else '' }}>warn</option>
-                    <option value="info" {{ 'selected' if log_level == 'info' else '' }}>info</option>
-                    <option value="verbose" {{ 'selected' if log_level == 'verbose' else '' }}>verbose</option>
-                    <option value="debug" {{ 'selected' if log_level == 'debug' else '' }}>debug</option>
-                  </select>
-                  <div class="hint"><code>debug</code> shows per-message activity (received from, forwarded, errors). <code>info</code> is the default and only shows startup events.</div>
-                </div>
-                <div class="row toggle-block">
-                  <div class="subtle-box">
-                    <label class="checkline"><input type="checkbox" name="log_console" {% if config.get('log', {}).get('console') %}checked{% endif %}> <span>Also log to console (stdout)</span></label>
-                    <div class="hint">Turn on if you want <code>docker logs smtp2graph</code> to show the same events live.</div>
                   </div>
                 </div>
               </div>

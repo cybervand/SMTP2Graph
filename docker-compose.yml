@@ -1,6 +1,6 @@
 services:
   smtp2graph:
-    image: smtp2graph/smtp2graph:latest
+    build: .
     container_name: ${SMTP2GRAPH_CONTAINER_NAME:-smtp2graph}
     restart: unless-stopped
     networks:

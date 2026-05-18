@@ -482,18 +482,7 @@ def index():
         else:
             receive.pop("authLimit", None)
 
-        log_level = request.form.get("log_level", "").strip()
-        if is_checked(request.form, "use_log_settings"):
-            log_section = new_config.setdefault("log", {})
-            if log_level:
-                log_section["level"] = log_level
-            else:
-                log_section.pop("level", None)
-            log_section["console"] = is_checked(request.form, "log_console")
-            if not log_section:
-                new_config.pop("log", None)
-        else:
-            new_config.pop("log", None)
+        new_config.pop("log", None)
 
         proxy_host = request.form.get("proxy_host", "").strip()
         proxy_port_raw = request.form.get("proxy_port", "").strip()
