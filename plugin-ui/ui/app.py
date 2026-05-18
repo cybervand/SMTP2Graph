@@ -10,9 +10,11 @@ from pathlib import Path
 import docker
 import yaml
 from flask import Flask, flash, redirect, render_template, request, send_file, session, url_for
+from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash, generate_password_hash
 
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
 CONFIG_PATH = Path(os.environ.get("CONFIG_PATH", "/config/config.yml"))
 LOG_DIR = Path(os.environ.get("SMTP2GRAPH_LOG_DIR", str(CONFIG_PATH.parent / "logs")))
